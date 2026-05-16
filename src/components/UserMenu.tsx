@@ -15,7 +15,6 @@ import {
   Gauge,
   Globe,
   Home,
-  KeyRound,
   LogOut,
   MessageSquare,
   Monitor,
@@ -117,6 +116,7 @@ export const UserMenu: React.FC = () => {
   const [defaultAggregateSearch, setDefaultAggregateSearch] = useState(true);
   const [doubanProxyUrl, setDoubanProxyUrl] = useState('');
   const [enableOptimization, setEnableOptimization] = useState(true);
+  const [preferStrategy, setPreferStrategy] = useState<'fast' | 'full'>('fast');
   const [speedTestTimeout, setSpeedTestTimeout] = useState(4000); // 测速超时时间（毫秒）
   const [fluidSearch, setFluidSearch] = useState(true);
   const [tmdbBackdropDisabled, setTmdbBackdropDisabled] = useState(false);
@@ -532,6 +532,11 @@ export const UserMenu: React.FC = () => {
         localStorage.getItem('enableOptimization');
       if (savedEnableOptimization !== null) {
         setEnableOptimization(JSON.parse(savedEnableOptimization));
+      }
+
+      const savedPreferStrategy = localStorage.getItem('preferStrategy');
+      if (savedPreferStrategy === 'fast' || savedPreferStrategy === 'full') {
+        setPreferStrategy(savedPreferStrategy);
       }
 
       const savedSpeedTestTimeout = localStorage.getItem('speedTestTimeout');
@@ -1008,6 +1013,13 @@ export const UserMenu: React.FC = () => {
     }
   };
 
+  const handlePreferStrategyChange = (value: 'fast' | 'full') => {
+    setPreferStrategy(value);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('preferStrategy', value);
+    }
+  };
+
   const handleSpeedTestTimeoutChange = (value: number) => {
     setSpeedTestTimeout(value);
     if (typeof window !== 'undefined') {
@@ -1356,6 +1368,7 @@ export const UserMenu: React.FC = () => {
 
     setDefaultAggregateSearch(true);
     setEnableOptimization(true);
+    setPreferStrategy('fast');
     setFluidSearch(defaultFluidSearch);
     setTmdbBackdropDisabled(false);
     setEnableTrailers(false);
@@ -1384,6 +1397,7 @@ export const UserMenu: React.FC = () => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('defaultAggregateSearch', JSON.stringify(true));
       localStorage.setItem('enableOptimization', JSON.stringify(true));
+      localStorage.setItem('preferStrategy', 'fast');
       localStorage.setItem('fluidSearch', JSON.stringify(defaultFluidSearch));
       localStorage.setItem('liveDirectConnect', JSON.stringify(false));
       localStorage.setItem('tmdb_backdrop_disabled', 'false');
@@ -1597,17 +1611,6 @@ export const UserMenu: React.FC = () => {
             >
               <Download className='w-4 h-4 text-gray-500 dark:text-gray-400' />
               <span className='font-medium'>离线下载</span>
-            </button>
-          )}
-
-          {/* 修改密码按钮 */}
-          {showChangePassword && (
-            <button
-              onClick={handleChangePassword}
-              className='w-full px-3 py-2 text-left flex items-center gap-2.5 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-sm'
-            >
-              <KeyRound className='w-4 h-4 text-gray-500 dark:text-gray-400' />
-              <span className='font-medium'>修改密码</span>
             </button>
           )}
 
@@ -2243,6 +2246,38 @@ export const UserMenu: React.FC = () => {
                   {/* 测速超时设置 */}
                   {enableOptimization && (
                     <div className='ml-4 mt-2 space-y-2'>
+                      <div className='space-y-2'>
+                        <div className='flex items-center justify-between gap-3'>
+                          <span className='text-xs text-gray-600 dark:text-gray-400'>
+                            优选策略
+                          </span>
+                          <div className='inline-flex rounded-lg border border-gray-200 bg-gray-100 p-1 dark:border-gray-700 dark:bg-gray-800'>
+                            <button
+                              type='button'
+                              onClick={() => handlePreferStrategyChange('fast')}
+                              className={`rounded-md px-4 py-1.5 text-xs font-medium transition-all ${
+                                preferStrategy === 'fast'
+                                  ? 'bg-white text-green-600 shadow-sm dark:bg-gray-700 dark:text-green-400'
+                                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                              }`}
+                            >
+                              快速优选
+                            </button>
+                            <button
+                              type='button'
+                              onClick={() => handlePreferStrategyChange('full')}
+                              className={`rounded-md px-4 py-1.5 text-xs font-medium transition-all ${
+                                preferStrategy === 'full'
+                                  ? 'bg-white text-green-600 shadow-sm dark:bg-gray-700 dark:text-green-400'
+                                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                              }`}
+                            >
+                              全量优选
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
                       <div className='flex items-center justify-between'>
                         <span className='text-xs text-gray-600 dark:text-gray-400'>
                           换源面板测速超时
@@ -3611,7 +3646,7 @@ export const UserMenu: React.FC = () => {
                       tv专用
                     </p>
                     <a
-                      href='https://github.com/mtvpls/MoonTVPlus/releases/tag/OrionTV%E9%80%82%E9%85%8D%E7%89%883'
+                      href='https://github.com/mtvpls/OrionTV_Build/tags'
                       target='_blank'
                       rel='noopener noreferrer'
                       className='inline-flex items-center gap-2 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium rounded-lg transition-colors'
@@ -3702,6 +3737,7 @@ export const UserMenu: React.FC = () => {
         avatarText={avatarText}
         roleBadgeClassName={roleBadgeClassName}
         showDeviceManagement={storageType !== 'localstorage'}
+        showChangePassword={showChangePassword}
         onOpenEmailSettings={() => {
           setIsProfileCenterOpen(false);
           setIsEmailSettingsOpen(true);
@@ -3711,6 +3747,10 @@ export const UserMenu: React.FC = () => {
           setIsProfileCenterOpen(false);
           setIsDeviceManagementOpen(true);
           loadDevices();
+        }}
+        onOpenChangePassword={() => {
+          setIsProfileCenterOpen(false);
+          handleChangePassword();
         }}
       />
 

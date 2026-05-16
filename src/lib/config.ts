@@ -5,6 +5,17 @@ import { db } from '@/lib/db';
 import { AdminConfig } from './admin.types';
 
 const BUILTIN_DANMAKU_API_BASE = 'https://mtvpls-danmu.netlify.app/87654321';
+const DEFAULT_LIVE_REFRESH_INTERVAL_HOURS = 12;
+
+function normalizeLiveRefreshIntervalHours(refreshIntervalHours?: number): number {
+  const normalizedInterval = Number(refreshIntervalHours);
+
+  if (!Number.isFinite(normalizedInterval) || normalizedInterval <= 0) {
+    return DEFAULT_LIVE_REFRESH_INTERVAL_HOURS;
+  }
+
+  return Math.floor(normalizedInterval);
+}
 
 export interface ApiSite {
   key: string;
@@ -545,6 +556,7 @@ export function configSelfCheck(adminConfig: AdminConfig): AdminConfig {
   if (!adminConfig.LiveConfig || !Array.isArray(adminConfig.LiveConfig)) {
     adminConfig.LiveConfig = [];
   }
+  adminConfig.LiveRefreshIntervalHours = normalizeLiveRefreshIntervalHours(adminConfig.LiveRefreshIntervalHours);
 
   // 用户信息已迁移到新版数据库
   // 这里只保留站长用户用于兼容性，其他用户从数据库读取
@@ -663,14 +675,83 @@ export function configSelfCheck(adminConfig: AdminConfig): AdminConfig {
     adminConfig.SuwayomiConfig.MaxSources = 10;
   }
 
+  if (!adminConfig.OPDSConfig) {
+    adminConfig.OPDSConfig = {
+      Enabled: process.env.OPDS_ENABLED === 'true',
+      Sources: (() => {
+        const json = process.env.OPDS_SOURCES_JSON;
+        if (json) {
+          try {
+            const parsed = JSON.parse(json);
+            if (Array.isArray(parsed)) return parsed;
+          } catch {
+            // ignore invalid env json
+          }
+        }
+
+        const envUrl = process.env.OPDS_URL || process.env.NEXT_PUBLIC_OPDS_URL;
+        if (!envUrl) return [];
+
+        return [{
+          id: 'default',
+          name: process.env.OPDS_NAME || '默认书源',
+          url: envUrl,
+          enabled: true,
+          authMode: (process.env.OPDS_AUTH_MODE as 'none' | 'basic' | 'header' | undefined) || 'none',
+          username: process.env.OPDS_USERNAME || '',
+          password: process.env.OPDS_PASSWORD || '',
+          headerName: process.env.OPDS_HEADER_NAME || '',
+          headerValue: process.env.OPDS_HEADER_VALUE || '',
+          searchTemplate: process.env.OPDS_SEARCH_TEMPLATE || '',
+        }];
+      })(),
+      CacheTTL: Number(process.env.OPDS_CACHE_TTL_MS || 10 * 60 * 1000),
+    };
+  }
+  if (adminConfig.OPDSConfig.Enabled === undefined) {
+    adminConfig.OPDSConfig.Enabled = false;
+  }
+  if (!Array.isArray(adminConfig.OPDSConfig.Sources)) {
+    adminConfig.OPDSConfig.Sources = [];
+  }
+  if (adminConfig.OPDSConfig.CacheTTL === undefined || Number.isNaN(adminConfig.OPDSConfig.CacheTTL)) {
+    adminConfig.OPDSConfig.CacheTTL = Number(process.env.OPDS_CACHE_TTL_MS || 10 * 60 * 1000);
+  }
+
   if (!adminConfig.NetDiskConfig) {
     adminConfig.NetDiskConfig = {
       Quark: {
         Enabled: false,
         Cookie: '',
         SavePath: '/',
-        PlayTempSavePath: '/',
-        OpenListTempPath: '/',
+      },
+      Mobile: {
+        Enabled: false,
+        Authorization: '',
+      },
+      Baidu: {
+        Enabled: false,
+        Cookie: '',
+      },
+      Tianyi: {
+        Enabled: false,
+        Account: '',
+        Password: '',
+      },
+      Pan123: {
+        Enabled: false,
+        Account: '',
+        Password: '',
+      },
+      UC: {
+        Enabled: false,
+        Cookie: '',
+        Token: '',
+        SavePath: '/',
+      },
+      Pan115: {
+        Enabled: false,
+        Cookie: '',
       },
     };
   }
@@ -680,8 +761,52 @@ export function configSelfCheck(adminConfig: AdminConfig): AdminConfig {
       Enabled: false,
       Cookie: '',
       SavePath: '/',
-      PlayTempSavePath: '/',
-      OpenListTempPath: '/',
+    };
+  }
+
+  if (!adminConfig.NetDiskConfig.Mobile) {
+    adminConfig.NetDiskConfig.Mobile = {
+      Enabled: false,
+      Authorization: '',
+    };
+  }
+
+  if (!adminConfig.NetDiskConfig.Baidu) {
+    adminConfig.NetDiskConfig.Baidu = {
+      Enabled: false,
+      Cookie: '',
+    };
+  }
+
+  if (!adminConfig.NetDiskConfig.Tianyi) {
+    adminConfig.NetDiskConfig.Tianyi = {
+      Enabled: false,
+      Account: '',
+      Password: '',
+    };
+  }
+
+  if (!adminConfig.NetDiskConfig.Pan123) {
+    adminConfig.NetDiskConfig.Pan123 = {
+      Enabled: false,
+      Account: '',
+      Password: '',
+    };
+  }
+
+  if (!adminConfig.NetDiskConfig.UC) {
+    adminConfig.NetDiskConfig.UC = {
+      Enabled: false,
+      Cookie: '',
+      Token: '',
+      SavePath: '/',
+    };
+  }
+
+  if (!adminConfig.NetDiskConfig.Pan115) {
+    adminConfig.NetDiskConfig.Pan115 = {
+      Enabled: false,
+      Cookie: '',
     };
   }
 
@@ -695,6 +820,18 @@ export function configSelfCheck(adminConfig: AdminConfig): AdminConfig {
     };
   } else if (adminConfig.MusicConfig.ProxyEnabled === undefined) {
     adminConfig.MusicConfig.ProxyEnabled = true;
+  }
+
+  if (!adminConfig.OPDSConfig) {
+    adminConfig.OPDSConfig = {
+      Enabled: false,
+      Sources: [],
+      CacheTTL: 10 * 60 * 1000,
+    };
+  } else {
+    if (adminConfig.OPDSConfig.CacheTTL === undefined) {
+      adminConfig.OPDSConfig.CacheTTL = 10 * 60 * 1000;
+    }
   }
 
   return adminConfig;
